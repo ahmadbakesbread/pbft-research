@@ -36,14 +36,20 @@ def get_replicas():
     
     return replicas
 
+@app.route('/select-node', methods=['POST'])
 def select_byzantine_node():
-    """Randomly selects a Byzantine node from the replicas (not the primary)."""
+    """Primary node randomly selects a Byzantine node from the replicas."""
     global byzantine_node
     replicas = get_replicas()
+
+    if self_node_url != get_primary():
+        return jsonify({"status": "REJECTED! Only the primary node can select byzantine node."}), 403
 
     if replicas:
         byzantine_node = random.choice(replicas)
         print(f"⚠️ Byzantine node selected: {byzantine_node}")
+    
+    return jsonify({"status": "OK"}), 203
 
 @app.route('/change-view', methods=['POST'])
 def change_view():
@@ -57,7 +63,6 @@ def change_view():
 
 @app.route('/request', methods=['POST'])
 def handle_request():
-
     primary = get_primary()
     if self_node_url != primary:
         return jsonify({"error": "Only the primary node can accept client requests"}), 403
@@ -171,4 +176,7 @@ def handle_commit():
 
 
 if __name__ == "__main__":
+    if self_node_url == get_primary():  # Only the primary node selects a Byzantine node
+        requests.post(f"{self_node_url}/select-node")  # Primary selects and sets the Byzantine node
+
     app.run(port=port)
