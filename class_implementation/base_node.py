@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from network import Network
 
 class Node(ABC):
-    def __init__(self, node_id, role, network=None, shard_id=None):
+    def __init__(self, node_id, role, network, shard_id=None):
         """
         Initialize a node in the PBFT network.
 
@@ -15,7 +15,6 @@ class Node(ABC):
         self.node_id = node_id
         self.role = role
         self.network = network
-        self.network = network if network is not None else Network()
         self.shard_id = shard_id
         self.message_log = []  # Queue for incoming messages
 
