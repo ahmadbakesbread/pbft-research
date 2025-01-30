@@ -1,4 +1,5 @@
-from class_implementation.base_node import Node
+from base_node import Node
+from network import Network
 
 class ClientNode(Node):
         """
@@ -14,16 +15,6 @@ class ClientNode(Node):
             super().__init__(node_id, role="client", shard_id=shard_id)
             self.reputation_score = reputation_score
             self.ram_usage = ram_usage
-    
-
-        def send_message(self, message, receiver_id=None):
-            """
-            Sends a message to primary node.
-            """
-            if receiver_id is not None:
-                print(f"Client Node {self.node_id} sending message to Node {receiver_id}: {message}")
-            else:
-                print(f"Client Node {self.node_id} broadcasting message: {message}")
 
         def receive_message(self, message):
             """
@@ -41,3 +32,18 @@ class ClientNode(Node):
             print(f"Client Node {self.node_id} does not decide its shard.")
             return self.shard_id
 
+def main():
+    network = Network()
+    client_node1 = ClientNode(node_id=1, shard_id=0, reputation_score=0.9, ram_usage=0.5)
+    client_node2 = ClientNode(node_id=2, shard_id=0, reputation_score=0.9, ram_usage=0.5)
+
+    network.add_node(client_node1)
+    network.add_node(client_node2)
+
+    client_node1.send_message("Hello, Node 2!", receiver_id=2)
+
+    print("Global Log:", network.get_global_message_log())
+     
+
+if __name__ == '__main__':
+     main()

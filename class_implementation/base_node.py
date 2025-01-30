@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+from network import Network
 
 class Node(ABC):
-    def __init__(self, node_id, role, shard_id=None):
+    def __init__(self, node_id, role, network=None, shard_id=None):
         """
         Initialize a node in the PBFT network.
 
@@ -13,24 +14,23 @@ class Node(ABC):
         """
         self.node_id = node_id
         self.role = role
+        self.network = network
+        self.network = network if network is not None else Network()
         self.shard_id = shard_id
-        self.message_queue = []  # Queue for incoming messages
+        self.message_log = []  # Queue for incoming messages
 
-    @abstractmethod
     def send_message(self, message, receiver_id=None):
         """
-        Send a message to another node or broadcast it to the network.
-        Must be implemented by derived classes.
+        Send a message to a specific node or broadcast it.
         """
-        pass
-
-    @abstractmethod
-    def receive_message(self, message):
-        """
-        Receive a message and add it to the message queue.
-        Must be implemented by derived classes.
-        """
-        pass
+        if receiver_id is not None:
+            print(f"Node {self.node_id} sending message to Node {receiver_id}: {message}")
+            self.network.log_message(self.node_id, receiver_id, message)
+        else:
+            print(f"Node {self.node_id} broadcasting message: {message}")
+            for node in self.network.nodes:
+                if node.node_id != self.node_id:
+                    self.network.log_message(self.node_id, node.node_id, message)
 
     @abstractmethod
     def decide_shard(self, shard_loads):
@@ -39,6 +39,23 @@ class Node(ABC):
         Must be implemented by derived classes.
         """
         pass
+
+    def check_message_log(self, filter_func=None):
+        """
+        Inspect the message log for specific messages or patterns.
+        
+        :param filter_func: A function to filter messages (e.g., by sender, content, or type).
+        :param global_log: If True, retrieves messages from the global network log instead of the node's local log.
+        :return: A list of messages that match the filter criteria.
+        """
+        
+        log = self.network.get_global_message_log()
+
+        if filter_func is None:
+            return log
+        else:
+            return [msg for msg in log if filter_func(msg)]
+
 
     def __str__(self):
         """
