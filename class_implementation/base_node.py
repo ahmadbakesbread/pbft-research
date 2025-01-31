@@ -60,5 +60,4 @@ class Node(ABC):
         """
         String representation of the node.
         """
-        return (f"Node(ID={self.node_id}, Role={self.role}, Shard={self.shard_id}, "
-                f"Reputation={self.reputation_score}, RAM Usage={self.ram_usage})")
+        return (f"Node(ID={self.node_id}, Role={self.role}, Shard={self.shard_id}")
