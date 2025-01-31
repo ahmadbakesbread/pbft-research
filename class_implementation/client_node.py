@@ -1,5 +1,8 @@
 from base_node import Node
 from network import Network
+import sys
+import hashlib
+import json
 
 class ClientNode(Node):
         """
@@ -11,10 +14,9 @@ class ClientNode(Node):
         :param ram_usage: Current RAM usage of the node (default: 0.0).
         """
 
-        def __init__(self, node_id, network, shard_id=None, reputation_score=1.0, ram_usage=0.0):
+        def __init__(self, node_id, network, shard_id=None, reputation_score=1.0):
             super().__init__(node_id, network=network, role="client", shard_id=shard_id)
             self.reputation_score = reputation_score
-            self.ram_usage = ram_usage
 
         def receive_message(self, message):
             """
@@ -22,6 +24,15 @@ class ClientNode(Node):
             """
             self.message_queue.append(message)
             print(f"Client Node {self.node_id} received message: {message}")
+
+        def create_request(self, data):
+            request = {
+            "operation": data,
+            "client_node_id": self.node_id
+            }
+
+            self.network.log_request(self.node_id, request)
+
 
         
         def decide_shard(self, shard_loads):
@@ -34,8 +45,8 @@ class ClientNode(Node):
 
 def main():
     network_obj = Network()
-    client_node1 = ClientNode(node_id=1, network=network_obj, shard_id=0, reputation_score=0.9, ram_usage=0.5)
-    client_node2 = ClientNode(node_id=2, network=network_obj, shard_id=0, reputation_score=0.9, ram_usage=0.5)
+    client_node1 = ClientNode(node_id=1, network=network_obj, shard_id=0, reputation_score=0.9)
+    client_node2 = ClientNode(node_id=2, network=network_obj, shard_id=0, reputation_score=0.9)
 
     network_obj.add_node(client_node1)
     network_obj.add_node(client_node2)
@@ -43,7 +54,11 @@ def main():
     client_node1.send_message("Hello, Node 2!", receiver_id=2)
 
     print("Global Log:", network_obj.get_global_message_log())
-     
+
+    client_node1.create_request("Ahmad sent 5 btc")
+
+    print(network_obj.get_requests())
+
 
 if __name__ == '__main__':
      main()
