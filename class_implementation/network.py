@@ -5,7 +5,8 @@ class Network:
         self.global_message_log = []
         self.global_requests = []
         self.current_primary_node = None
-
+        self.commit_votes = {}
+        self.completed_requests = set()
 
     def add_client_node(self, client_node):
         """
@@ -15,6 +16,12 @@ class Network:
     
     def add_validator_node(self, validator_node):
         self.validator_nodes.append(validator_node)
+
+        # If no primary exists, set the first node as primary
+        if not self.current_primary_node:
+            self.current_primary_node = validator_node
+            validator_node.isPrimary = True
+
 
     def log_message(self, sender_id, receiver_id, message):
         """
@@ -46,7 +53,11 @@ class Network:
         """ Return 2f+1 threshold for PBFT consensus. """
         f = (len(self.validator_nodes) - 1) // 3  # Maximum Byzantine nodes
         return 2 * f + 1
-
+    
+    def required_commit_threshold(self):
+        """ Return 2f+1 threshold for COMMIT phase. """
+        f = (len(self.validator_nodes) - 1) // 3
+        return 2 * f + 1
 
     def broadcast(self, message, exclude=[]):
         for validator_node in self.validator_nodes:
@@ -109,3 +120,6 @@ class Network:
         
         self.completed_requests.add(digest)
         print(f"✅✅ Network: Request {digest[:8]} has been finalized and executed!")
+
+    def get_completed_requests(self):
+        return self.completed_requests
