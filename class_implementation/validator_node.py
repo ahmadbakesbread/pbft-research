@@ -1,13 +1,14 @@
 from base_node import Node
 from abc import abstractmethod
 from network import Network
+from shard import Shard
 import hashlib
 import json
 
 class ValidatorNode(Node):
 
-    def __init__(self, node_id, network, shard_id=None, reputation_score=1.0, isPrimary=False):
-        super().__init__(node_id, role="validator", network=network, shard_id=shard_id)
+    def __init__(self, node_id, network, shard=None, reputation_score=1.0, isPrimary=False):
+        super().__init__(node_id, role="validator", network=network, shard=shard)
         self.reputation_score = reputation_score
         self.isPrimary = isPrimary  
         
@@ -15,7 +16,7 @@ class ValidatorNode(Node):
         self.pending_commits = {}
         self.commit_votes = {}
       
-    def decide_shard(self, shard_loads):
+    def decide_shard(self):
         pass # This method requires the ML model to be complete, will complete soon however.
 
     def check_requests(self):
@@ -23,7 +24,7 @@ class ValidatorNode(Node):
             print("Only primary node is authorized to check requests")
             return
 
-        requests = self.network.get_requests()
+        requests = self.shard.get_requests()
 
         return requests
 
@@ -43,7 +44,7 @@ class ValidatorNode(Node):
         }
 
 
-        self.network.broadcast(pre_prepare_msg, exclude=[self])  # Exclude self
+        self.shard.broadcast(pre_prepare_msg, exclude=[self])  # Exclude self
 
     def receive_preprepare(self, pre_prepare_msg):
         """ Replicas receive PRE-PREPARE and store it for processing. """
@@ -70,7 +71,7 @@ class ValidatorNode(Node):
                 "digest": digest,
                 "validator_id": self.node_id
             }
-            self.network.broadcast(prepare_msg)
+            self.shard.broadcast(prepare_msg)
 
         # Clear processed messages
         self.pending_prepares.clear()
@@ -88,7 +89,7 @@ class ValidatorNode(Node):
 
         self.pending_commits[digest].add(prepare_msg["validator_id"])
 
-        if len(self.pending_commits[digest]) >= self.network.required_prepare_threshold():
+        if len(self.pending_commits[digest]) >= self.shard.required_prepare_threshold():
             print(f"🟢 Node {self.node_id}: Reached 2f+1 PREPAREs -> Sending COMMIT.")
 
         commit_msg = {
@@ -97,11 +98,11 @@ class ValidatorNode(Node):
             "validator_id": self.node_id
         }
 
-        self.network.broadcast(commit_msg)
+        self.shard.broadcast(commit_msg)
 
 
     def receive_commit(self, commit_msg):
-        """ Process incoming COMMIT messages and notify the network when consensus is reached. """
+        """ Process incoming COMMIT messages and notify the shard when consensus is reached. """
         digest = commit_msg["digest"]
 
         # 1️⃣ Track received COMMIT messages
@@ -113,5 +114,5 @@ class ValidatorNode(Node):
         print(f"🔵 Node {self.node_id}: Received COMMIT for {digest[:8]} from {commit_msg['validator_id']}.")
 
         # 2️⃣ If we have 2f+1 COMMIT messages, notify the network to finalize the request
-        if len(self.commit_votes[digest]) >= self.network.required_commit_threshold():
-            self.network.track_commit_vote(digest, self.node_id)  # 🏁 The network handles finalization
+        if len(self.commit_votes[digest]) >= self.shard.required_commit_threshold():
+            self.shard.track_commit_vote(digest, self.node_id)  # 🏁 The network handles finalization

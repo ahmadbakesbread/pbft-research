@@ -1,5 +1,6 @@
 from base_node import Node
 from network import Network
+from shard import Shard
 import sys
 import hashlib
 import json
@@ -14,8 +15,8 @@ class ClientNode(Node):
         :param ram_usage: Current RAM usage of the node (default: 0.0).
         """
 
-        def __init__(self, node_id, network, shard_id=None, reputation_score=1.0):
-            super().__init__(node_id, network=network, role="client", shard_id=shard_id)
+        def __init__(self, node_id, network, shard=None, reputation_score=1.0):
+            super().__init__(node_id, network=network, role="client", shard=shard)
             self.reputation_score = reputation_score
 
         def receive_message(self, message):
@@ -31,7 +32,7 @@ class ClientNode(Node):
             "client_node_id": self.node_id
             }
 
-            self.network.log_request(self.node_id, request)
+            self.shard.log_request(self.node_id, request)
 
 
         
@@ -45,19 +46,22 @@ class ClientNode(Node):
 
 def main():
     network_obj = Network()
-    client_node1 = ClientNode(node_id=1, network=network_obj, shard_id=0, reputation_score=0.9)
-    client_node2 = ClientNode(node_id=2, network=network_obj, shard_id=0, reputation_score=0.9)
+    shard = Shard()
+    client_node1 = ClientNode(node_id=1, network=network_obj, shard=shard, reputation_score=0.9)
+    client_node2 = ClientNode(node_id=2, network=network_obj, shard=shard, reputation_score=0.9)
 
-    network_obj.add_node(client_node1)
-    network_obj.add_node(client_node2)
+    network_obj.add_shard(shard)
+
+    shard.add_client_node(client_node1)
+    shard.add_client_node(client_node2)
 
     client_node1.send_message("Hello, Node 2!", receiver_id=2)
 
-    print("Global Log:", network_obj.get_global_message_log())
+    print("Global Log:", shard.get_global_message_log())
 
     client_node1.create_request("Ahmad sent 5 btc")
 
-    print(network_obj.get_requests())
+    print(f"All Shard's Requests: {shard.get_requests()}")
 
 
 if __name__ == '__main__':

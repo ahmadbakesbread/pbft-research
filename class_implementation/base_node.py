@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from network import Network
+from shard import Shard
 
 class Node(ABC):
-    def __init__(self, node_id, role, network, shard_id=None):
+    def __init__(self, node_id, role, network, shard=None):
         """
         Initialize a node in the PBFT network.
 
@@ -15,7 +16,7 @@ class Node(ABC):
         self.node_id = node_id
         self.role = role
         self.network = network
-        self.shard_id = shard_id
+        self.shard = shard
         self.message_log = []  # Queue for incoming messages
 
     def send_message(self, message, receiver_id=None):
@@ -24,12 +25,12 @@ class Node(ABC):
         """
         if receiver_id is not None:
             print(f"Node {self.node_id} sending message to Node {receiver_id}: {message}")
-            self.network.log_message(self.node_id, receiver_id, message)
+            self.shard.log_message(self.node_id, receiver_id, message)
         else:
             print(f"Node {self.node_id} broadcasting message: {message}")
-            for node in self.network.nodes:
+            for node in self.shard.nodes:
                 if node.node_id != self.node_id:
-                    self.network.log_message(self.node_id, node.node_id, message)
+                    self.shard.log_message(self.node_id, node.node_id, message)
 
     @abstractmethod
     def decide_shard(self, shard_loads):

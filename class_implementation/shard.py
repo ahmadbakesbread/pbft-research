@@ -1,12 +1,33 @@
-class Network:
-    def __init__(self):
-        self.shards = []
+from network import Network
+
+class Shard:
+    def __init__(self, shard_id):
+        self.client_nodes = []
+        self.validator_nodes = []
         self.global_message_log = []
-        self.global_requests = []
+        self.shard_requests = []
         self.current_primary_node = None
         self.commit_votes = {}
         self.completed_requests = set()
+        self.shard_id = shard_id
+        self.global_requests = []
 
+
+    def add_client_node(self, client_node):
+        """
+        Add a node to the network.
+        """
+        self.client_nodes.append(client_node)
+    
+    def add_validator_node(self, validator_node):
+        self.validator_nodes.append(validator_node)
+
+        # If no primary exists, set the first node as primary
+        if not self.current_primary_node:
+            self.current_primary_node = validator_node
+            validator_node.isPrimary = True
+
+    
     def log_message(self, sender_id, receiver_id, message):
         """
         Log a message globally.
@@ -31,7 +52,6 @@ class Network:
         }
 
         self.global_requests.append(log_entry)
-
 
     def required_prepare_threshold(self):
         """ Return 2f+1 threshold for PBFT consensus. """
@@ -107,6 +127,4 @@ class Network:
 
     def get_completed_requests(self):
         return self.completed_requests
-    
-    def add_shard(self, shard):
-        self.shards.append(shard)
+
