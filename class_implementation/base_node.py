@@ -55,6 +55,12 @@ class Node(ABC):
             return log
         else:
             return [msg for msg in log if filter_func(msg)]
+    
+    def get_node_id(self):
+        return self.node_id
+    
+    def get_shard(self):
+        return self.shard
 
 
     def __str__(self):

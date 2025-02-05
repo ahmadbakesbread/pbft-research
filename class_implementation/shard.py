@@ -1,18 +1,22 @@
 from network import Network
 
 class Shard:
-    def __init__(self, shard_id):
+    def __init__(self, shard_id, network):
         self.client_nodes = []
         self.validator_nodes = []
         self.global_message_log = []
         self.shard_requests = []
         self.current_primary_node = None
         self.commit_votes = {}
+        self.network = network
         self.completed_requests = set()
         self.shard_id = shard_id
         self.global_requests = []
 
 
+    def get_shard_id(self):
+        return self.shard_id
+    
     def add_client_node(self, client_node):
         """
         Add a node to the network.
@@ -26,8 +30,11 @@ class Shard:
         if not self.current_primary_node:
             self.current_primary_node = validator_node
             validator_node.isPrimary = True
+        
+    def add_log_request(self, log_entry):
+        self.global_requests.append(log_entry)
 
-    
+
     def log_message(self, sender_id, receiver_id, message):
         """
         Log a message globally.
@@ -41,17 +48,35 @@ class Shard:
         self.global_message_log.append(log_entry)
         print(f"LOGGED MESSAGE: {log_entry}")  # Debugging output
 
-    def log_request(self, sender_id, request):
+    def log_request(self, sender_id, receiver_id, request):
         """
         Log a request for the primary node to see.
         """
         log_entry = {
-            "sender_id": sender_id,
+            "sender": sender_id,
+            "receiver": receiver_id,
             "request": request,
             "timestamp": self.get_timestamp()
         }
 
-        self.global_requests.append(log_entry)
+        sender_shard = self.network.find_shard_of_node(sender_id)
+        receiver_shard = self.network.find_shard_of_node(receiver_id)
+
+        if sender_shard == receiver_shard:
+            print("Both Sender and Receiver Client Nodes are in the same shard")
+            self.add_log_request(log_entry)
+        elif sender_shard != receiver_shard:
+            print(" Sender and Receiver Client Nodes are not in the same shard, sending request over to receiver shard.")
+            receiver_shard.add_log_request(log_entry)
+        else:
+            print("Either sender or receiver Client Nodes are invalid.")
+
+
+
+        
+        
+
+        
 
     def required_prepare_threshold(self):
         """ Return 2f+1 threshold for PBFT consensus. """

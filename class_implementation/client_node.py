@@ -26,15 +26,21 @@ class ClientNode(Node):
             self.message_queue.append(message)
             print(f"Client Node {self.node_id} received message: {message}")
 
-        def create_request(self, data):
-            request = {
+        def create_request(self, data, receiver_id):
+            transaction = {
             "operation": data,
-            "client_node_id": self.node_id
+            "client_node_id": self.node_id,
+            "receiver": receiver_id
             }
 
-            self.shard.log_request(self.node_id, request)
+            digest = hashlib.sha256(json.dumps(transaction).encode()).hexdigest()
 
+            request = {
+                "digest": digest,
+                "transaction": transaction
+            }
 
+            self.shard.log_request(self.node_id, receiver_id, request)
         
         def decide_shard(self, shard_loads):
             """

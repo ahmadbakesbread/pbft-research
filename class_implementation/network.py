@@ -1,6 +1,7 @@
 class Network:
     def __init__(self):
         self.shards = []
+        self.nodes = {}
         self.global_message_log = []
         self.global_requests = []
         self.current_primary_node = None
@@ -110,3 +111,11 @@ class Network:
     
     def add_shard(self, shard):
         self.shards.append(shard)
+
+    
+    def find_shard_of_node(self, node_id): # Current lookup time, O(n^2), edit code later to ensure that lookup time is O(1) by adding nodes and shard to hashmap
+        for shard in self.shards:
+            for node in shard.validator_nodes + shard.client_nodes:
+                if node.get_node_id() == node_id: # Check if the current node we find searching through the shards is equal to the node_id we are trying to find
+                    return shard
+    
