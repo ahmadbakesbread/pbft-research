@@ -7,15 +7,24 @@ import json
 
 class ValidatorNode(Node):
 
-    def __init__(self, node_id, network, shard=None, reputation_score=1.0, isPrimary=False):
+    def __init__(self, node_id, network, shard=None, reputation_score=1.0, cpu_rating = 1.0, ram_usage = 1.0, isPrimary=False):
         super().__init__(node_id, role="validator", network=network, shard=shard)
         self.reputation_score = reputation_score
+        self.cpu_rating = cpu_rating
+        self.ram_usage = ram_usage
         self.isPrimary = isPrimary  
-        
         self.pending_prepares = []
         self.pending_commits = {}
         self.commit_votes = {}
-      
+
+    
+    def get_cpu_rating(self):
+        return self.cpu_rating
+    
+    def get_reputation_score(self):
+        return self.reputation_score
+    
+
     def decide_shard(self):
         pass # This method requires the ML model to be complete, will complete soon however.
 

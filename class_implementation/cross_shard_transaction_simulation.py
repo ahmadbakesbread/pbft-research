@@ -30,7 +30,7 @@ def main():
     shard1.add_client_node(client_node1)
     shard1.add_validator_node(val_node1)
     shard1.add_validator_node(val_node2)
-    shard1.add_validator_node(val_node3)
+    shard1.add_validator_node(val_node3) 
     shard1.add_validator_node(val_node4)
 
     shard2.add_client_node(client_node2)
@@ -39,8 +39,6 @@ def main():
     shard2.add_validator_node(val_node7)
     shard2.add_validator_node(val_node8)
 
-
-    
 
     client_node1.create_request("Ahmad has sent 5 supercoins to Naseem.", client_node2.get_node_id())
 
