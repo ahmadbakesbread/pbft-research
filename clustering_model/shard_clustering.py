@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering, KMeans
 import random
-from dummy_network import DummyNetwork, DummyNode 
+#from dummy_network import DummyNetwork, DummyNode 
 
 def compute_shard_centroid(shard_centroid):
     if not shard_centroid:
@@ -13,7 +13,14 @@ def compute_shard_centroid(shard_centroid):
 
 def compute_subshards_ward(network, n_shards):
     """ Perform Ward hierarchical clustering on a network to divide it into shards. """
-    
+
+    total_nodes = len(network.validator_nodes)
+
+    if total_nodes == 0:
+        print("No validator nodes available.")
+        return None  
+
+
     feature_matrix = []
 
     for node in network.validator_nodes:
@@ -33,7 +40,6 @@ def compute_subshards_ward(network, n_shards):
     )
 
     labels = clustering.fit_predict(feature_matrix)
-
 
     # Group nodes by their cluster label
     subshards = {}

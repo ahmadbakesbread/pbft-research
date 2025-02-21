@@ -1,5 +1,3 @@
-from network import Network
-
 class Shard:
     def __init__(self, shard_id, network):
         self.client_nodes = []
@@ -153,3 +151,6 @@ class Shard:
     def get_completed_requests(self):
         return self.completed_requests
 
+
+    def __repr__(self):
+        return f"Shard(id={self.shard_id}, val_nodes={self.validator_nodes}, client_nodes={self.client_nodes})"

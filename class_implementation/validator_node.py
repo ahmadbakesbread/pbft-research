@@ -7,8 +7,8 @@ import json
 
 class ValidatorNode(Node):
 
-    def __init__(self, node_id, network, shard=None, reputation_score=1.0, cpu_rating = 1.0, ram_usage = 1.0, isPrimary=False):
-        super().__init__(node_id, role="validator", network=network, shard=shard)
+    def __init__(self, node_id, network, shard=None, reputation_score=1.0, cpu_rating = 1.0, ram_usage = 1.0, isPrimary=False, name=None):
+        super().__init__(node_id, role="validator", network=network, shard=shard, name=name)
         self.reputation_score = reputation_score
         self.cpu_rating = cpu_rating
         self.ram_usage = ram_usage

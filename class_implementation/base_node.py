@@ -3,7 +3,7 @@ from network import Network
 from shard import Shard
 
 class Node(ABC):
-    def __init__(self, node_id, role, network, shard=None):
+    def __init__(self, node_id, name, role, network, shard=None):
         """
         Initialize a node in the PBFT network.
 
@@ -15,6 +15,7 @@ class Node(ABC):
         """
         self.node_id = node_id
         self.role = role
+        self.name = name
         self.network = network
         self.shard = shard
         self.message_log = []  # Queue for incoming messages
@@ -68,3 +69,6 @@ class Node(ABC):
         String representation of the node.
         """
         return (f"Node(ID={self.node_id}, Role={self.role}, Shard={self.shard_id}")
+    
+    def __repr__(self):
+        return f"ValidatorNode(id={self.node_id}, name={self.name})"

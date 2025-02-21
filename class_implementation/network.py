@@ -1,12 +1,24 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from clustering_model.shard_clustering import compute_subshards_ward
+from shard import Shard
+
 class Network:
-    def __init__(self):
+    def __init__(self, min_nodes_per_shard=3, max_nodes_per_shard=10):
         self.shards = []
-        self.nodes = {}
+        self.min_nodes_per_shard = min_nodes_per_shard
+        self.max_nodes_per_shard = max_nodes_per_shard
+        self.validator_nodes = set()
+        self.client_nodes = {}
         self.global_message_log = []
         self.global_requests = []
         self.current_primary_node = None
         self.commit_votes = {}
         self.completed_requests = set()
+
 
     def log_message(self, sender_id, receiver_id, message):
         """
@@ -77,6 +89,9 @@ class Network:
         
         return replicas
     
+    def get_shards(self):
+        return self.shards
+    
     def get_requests(self):
         return self.global_requests
     
@@ -108,10 +123,11 @@ class Network:
 
     def get_completed_requests(self):
         return self.completed_requests
-    
-    def add_shard(self, shard):
-        self.shards.append(shard)
 
+    
+    def add_shard(self, shard): # Old method of sharding within blockchain, no longer using this method.
+        self.shards.append(shard)
+    
     
     def find_shard_of_node(self, node_id): # Current lookup time, O(n^2), edit code later to ensure that lookup time is O(1) by adding nodes and shard to hashmap
         for shard in self.shards:
@@ -119,3 +135,54 @@ class Network:
                 if node.get_node_id() == node_id: # Check if the current node we find searching through the shards is equal to the node_id we are trying to find
                     return shard
     
+    def recompute_shards(self):
+        """ Recalculate shard assignments dynamically. """
+        total_nodes = len(self.validator_nodes)
+
+        if total_nodes == 0:
+            print("⚠ No validator nodes available.")
+            return None  
+
+        if total_nodes < 2:
+            print("⚠ Not enough nodes to perform clustering. Assigning all to one shard.")
+            return {0: {"nodes": list(self.validator_nodes), "centroid": None}}  # Place all in one shard
+
+
+        n_shards = max(1, total_nodes // self.max_nodes_per_shard)  # Prevent too many shards
+        n_shards = min(n_shards, total_nodes // self.min_nodes_per_shard)  # Prevent too few shards
+
+        if n_shards < 1:
+            print("⚠ Not enough nodes to form shards. Assigning all to one shard.")
+            n_shards = 1  # Ensure at least one shard exists
+        
+        print(f"🔄 Recomputing shards... Expected number of shards: {n_shards}")
+
+        new_shards = compute_subshards_ward(self, n_shards)
+
+        if new_shards is None:
+            print("⚠ Failed to recompute shards.")
+            return  
+
+        # Reset current shards
+        self.shards = {}
+        self.shard_centroids = {}
+
+        for shard_id, shard_info in new_shards.items():
+            # Create new shard
+            self.shards[shard_id] = Shard(shard_id=shard_id, network=self)
+
+            # Assign nodes to this shard
+            for node in shard_info["nodes"]:
+                self.shards[shard_id].add_validator_node(node)
+                node.shard = self.shards[shard_id]  # Update node's shard reference
+
+            # Store centroid for future use
+            self.shard_centroids[shard_id] = shard_info["centroid"]
+
+        print(f"✅ Shards recomputed dynamically. Total shards: {len(self.shards)}")
+
+    
+    def add_validator_node(self, validator_node):
+        self.validator_nodes.add(validator_node)
+        self.recompute_shards()
+

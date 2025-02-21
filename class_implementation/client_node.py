@@ -15,8 +15,8 @@ class ClientNode(Node):
         :param ram_usage: Current RAM usage of the node (default: 0.0).
         """
 
-        def __init__(self, node_id, network, shard=None, reputation_score=1.0):
-            super().__init__(node_id, network=network, role="client", shard=shard)
+        def __init__(self, node_id, network, shard=None, reputation_score=1.0, name=None):
+            super().__init__(node_id, network=network, role="client", shard=shard, name=name)
             self.reputation_score = reputation_score
 
         def receive_message(self, message):
