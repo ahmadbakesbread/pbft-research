@@ -15,7 +15,7 @@ def main():
 
     for val_node in val_nodes:
         network.add_validator_node(val_node)
-        print(network.get_shards())
+        network.plot_shard_changes() 
 
 
 if __name__ == '__main__':

@@ -5,10 +5,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from clustering_model.shard_clustering import compute_subshards_ward
 from shard import Shard
+import matplotlib.pyplot as plt
+
 
 class Network:
     def __init__(self, min_nodes_per_shard=3, max_nodes_per_shard=10):
-        self.shards = []
+        self.shards = {}
         self.min_nodes_per_shard = min_nodes_per_shard
         self.max_nodes_per_shard = max_nodes_per_shard
         self.validator_nodes = set()
@@ -18,6 +20,7 @@ class Network:
         self.current_primary_node = None
         self.commit_votes = {}
         self.completed_requests = set()
+        self.prev_shard_assignments = None  # Track previous shard assignments
 
 
     def log_message(self, sender_id, receiver_id, message):
@@ -186,3 +189,36 @@ class Network:
         self.validator_nodes.add(validator_node)
         self.recompute_shards()
 
+    def plot_shard_changes(self):
+        """ Plot movement of nodes between shards. """
+        new_shard_assignments = {}
+        for shard_id, shard in self.shards.items():
+            for node in shard.validator_nodes:
+                new_shard_assignments[node.node_id] = shard_id
+
+        # 🟢 If no previous assignments exist, just store current state
+        if self.prev_shard_assignments is None:
+            self.prev_shard_assignments = new_shard_assignments.copy()
+            print("⚠ First iteration - no previous shard assignments to compare.")
+            return
+
+        plt.figure(figsize=(10, 5))
+        moved_nodes = False  # Check if any node moved
+
+        for node_id, prev_shard in self.prev_shard_assignments.items():
+            new_shard = new_shard_assignments.get(node_id, None)
+            if new_shard is not None and prev_shard != new_shard:
+                moved_nodes = True
+                plt.scatter(node_id, prev_shard, color='red', label='Previous' if node_id == 0 else "")
+                plt.scatter(node_id, new_shard, color='blue', label='New' if node_id == 0 else "")
+
+        plt.xlabel("Node ID")
+        plt.ylabel("Shard ID")
+        plt.title("Node Movements Between Shards")
+        if moved_nodes:
+            plt.legend()
+            plt.show()
+        else:
+            print("✅ No nodes moved between shards.")
+
+        self.prev_shard_assignments = new_shard_assignments.copy()  # ✅ Update history
