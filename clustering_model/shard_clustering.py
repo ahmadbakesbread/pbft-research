@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering, KMeans
 import random
-#from dummy_network import DummyNetwork, DummyNode 
+from dummy_network import DummyNetwork, DummyNode 
 
 def compute_shard_centroid(shard_centroid):
     if not shard_centroid:
@@ -71,6 +71,7 @@ if __name__ == '__main__':
     for i in range(20)
     ]
 
+
     network = DummyNetwork(nodes)
 
     n_shards = 3
@@ -79,5 +80,5 @@ if __name__ == '__main__':
 
     for shard_id, shard_info in subshards.items():
         print(f"Shard {shard_id}: Centroid -> {shard_info['centroid']}")
-        print(f"Shard {shard_id}: Nodes -> {[node.node_id for node in shard_info['nodes']]}")
+        print(f"Shard {shard_id}: Nodes -> {[node for node in shard_info['nodes']]}")
         print("=" * 50)
