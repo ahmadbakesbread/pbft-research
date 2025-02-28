@@ -66,6 +66,28 @@ def compute_subshards_dbscan(network, min_samples=2):
 
     return result, outliers
 
+def reassign_outliers(outliers, subshards, max_distance=10):
+    for node in outliers:
+        node_features = np.array([node.cpu_rating, node.reputation_score, node.ram_usage])
+        best_shard = None
+        min_distance = float('inf')
+
+        for label, shard_info in subshards.items():
+            centroid = shard_info["centroid"]
+            distance = np.linalg.norm(node_features - centroid)
+            if distance < min_distance:
+                min_distance = distance
+                best_shard = label
+
+        if best_shard is not None and min_distance < max_distance:
+            subshards[best_shard]["nodes"].append(node)
+            print(f"Reassigned node {node.node_id} to cluster {best_shard} (distance: {min_distance:.2f})")
+        else:
+            print(f"Node {node.node_id} remains an outlier (distance: {min_distance:.2f})")
+
+    return subshards
+
+
 
 
 
@@ -86,6 +108,11 @@ if __name__ == '__main__':
     # Run DBSCAN with an initial eps value
     subshards, outliers = compute_subshards_dbscan(network)
 
+    reassign_outliers(outliers, subshards)
+
+    
+
+'''
     # Print results
     for shard_id, shard_info in subshards.items():
         print(f"Shard {shard_id}: Centroid -> {shard_info['centroid']}")
@@ -124,10 +151,11 @@ if __name__ == '__main__':
         # Compute and print average number of outliers
         avg_outliers = np.mean(outlier_counts)
         print(f"Average Number of Outliers over {num_simulations} runs: {avg_outliers:.2f}")
-
+'''
 
 
 '''
 since specific clusters don't have the minimal requirement of nodes, we should group them with the cluster that is most similar to its own.
 also, outliers, what should we do about them.
 '''
+
