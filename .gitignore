@@ -1,3 +1,4 @@
 venv/
 class_implementation/__pycache__/
 clustering_model/__pycache__
+clustering_model/sharding_penalty.py
