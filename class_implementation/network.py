@@ -1,18 +1,21 @@
+from math import comb
 import sys
 import os
 
+from sklearn.cluster import KMeans
+from sklearn.metrics import calinski_harabasz_score
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from clustering_model.shard_clustering import compute_subshards_ward
 from shard import Shard
 import matplotlib.pyplot as plt
-
+import numpy as np
+import random
 
 class Network:
-    def __init__(self, min_nodes_per_shard=3, max_nodes_per_shard=10):
+    def __init__(self, s_min=3, s_max=20, lambda_val=0.4, byzantine_threshold=0.3):
         self.shards = {}
-        self.min_nodes_per_shard = min_nodes_per_shard
-        self.max_nodes_per_shard = max_nodes_per_shard
+        self.shard_centroids = {}
         self.validator_nodes = set()
         self.client_nodes = {}
         self.global_message_log = []
@@ -21,6 +24,16 @@ class Network:
         self.commit_votes = {}
         self.completed_requests = set()
         self.prev_shard_assignments = None  # Track previous shard assignments
+
+        # Parameters for optimal sharding
+        self.s_min = s_min
+        self.s_max = s_max
+        self.lambda_val = lambda_val
+        self.byzantine_threshold = byzantine_threshold
+
+        self.N = len(self.validator_nodes)
+        self.K_malicious = int(self.N * 0.2)
+
 
 
     def log_message(self, sender_id, receiver_id, message):
@@ -141,84 +154,77 @@ class Network:
     def recompute_shards(self):
         """ Recalculate shard assignments dynamically. """
         total_nodes = len(self.validator_nodes)
-
         if total_nodes == 0:
-            print("⚠ No validator nodes available.")
-            return None  
+            print("No validator nodes available.")
+            return
 
-        if total_nodes < 2:
-            print("⚠ Not enough nodes to perform clustering. Assigning all to one shard.")
-            return {0: {"nodes": list(self.validator_nodes), "centroid": None}}  # Place all in one shard
-
-
-        n_shards = max(1, total_nodes // self.max_nodes_per_shard)  # Prevent too many shards
-        n_shards = min(n_shards, total_nodes // self.min_nodes_per_shard)  # Prevent too few shards
-
-        if n_shards < 1:
-            print("⚠ Not enough nodes to form shards. Assigning all to one shard.")
-            n_shards = 1  # Ensure at least one shard exists
+        # Extract feature matrix; here we use CPU rating and RAM usage (you can add more features if desired)
+        X = np.array([[node.cpu_rating, node.ram_usage] for node in self.validator_nodes])
         
-        print(f"🔄 Recomputing shards... Expected number of shards: {n_shards}")
+        s_values = np.arange(self.s_min, self.s_max + 1)
+        ch_scores = []
+        penalized_scores = []
 
-        new_shards = compute_subshards_ward(self, n_shards)
+        best_kmeans = None
+        best_labels = None
 
-        if new_shards is None:
-            print("⚠ Failed to recompute shards.")
-            return  
+        # Iterate over candidate shard counts
+        for s in s_values:
+            # Apply K-Means clustering with s clusters
+            kmeans = KMeans(n_clusters=s, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(X)
 
-        # Reset current shards
-        self.shards = {}
+            # Compute the Calinski-Harabasz index (negated so lower is better)
+            ch_index = -calinski_harabasz_score(X, labels) if s > 1 else 0
+            ch_scores.append(ch_index)
+
+            # Compute Byzantine risk probability for shard size = ceil(total_nodes / s)
+            n_shard_size = int(np.ceil(total_nodes / s))
+            threshold = int(np.ceil(n_shard_size * self.byzantine_threshold))
+            hypergeom_tail = 0
+            denom = comb(total_nodes, n_shard_size)
+            for k in range(threshold, n_shard_size + 1):
+                hypergeom_tail += comb(self.K_malicious, k) * comb(total_nodes - self.K_malicious, n_shard_size - k)
+            byzantine_risk = hypergeom_tail / denom
+
+            penalty = self.lambda_val * byzantine_risk * (s - self.s_min) ** 2
+            penalized_score = ch_index + penalty
+            penalized_scores.append(penalized_score)
+
+            # Store best solution based on the combined objective
+            if s == s_values[np.argmin(penalized_scores)]:
+                best_kmeans = kmeans
+                best_labels = labels
+
+        opt_s = s_values[np.argmin(penalized_scores)]
+        print(f"Optimal number of shards (with penalty): {opt_s}")
+
+        # Now assign nodes to shards using the best clustering solution
+        new_shards = {}  # shard_id -> list of nodes
+        for i, node in enumerate(self.validator_nodes):
+            label = best_labels[i]
+            if label not in new_shards:
+                new_shards[label] = []
+            new_shards[label].append(node)
+
+        # Update network's shard assignments and compute centroids
+        self.shards = new_shards
         self.shard_centroids = {}
+        for label, nodes in self.shards.items():
+            features = np.array([[node.cpu_rating, node.ram_usage] for node in nodes])
+            self.shard_centroids[label] = features.mean(axis=0)
+            # Optionally, you can update a node's shard attribute if defined:
+            for node in nodes:
+                node.shard = label
 
-        for shard_id, shard_info in new_shards.items():
-            # Create new shard
-            self.shards[shard_id] = Shard(shard_id=shard_id, network=self)
+        print(f"Shards recomputed dynamically. Total shards: {len(self.shards)}")
 
-            # Assign nodes to this shard
-            for node in shard_info["nodes"]:
-                self.shards[shard_id].add_validator_node(node)
-                node.shard = self.shards[shard_id]  # Update node's shard reference
-
-            # Store centroid for future use
-            self.shard_centroids[shard_id] = shard_info["centroid"]
-
-        print(f"✅ Shards recomputed dynamically. Total shards: {len(self.shards)}")
 
     
     def add_validator_node(self, validator_node):
-        self.validator_nodes.add(validator_node)
+        self.validator_nodes.update(validator_node)
+        self.recompute_shards()
+        self.N = len(self.validator_nodes)
+        self.K_malicious = int(self.N * 0.2)
         self.recompute_shards()
 
-    def plot_shard_changes(self):
-        """ Plot movement of nodes between shards. """
-        new_shard_assignments = {}
-        for shard_id, shard in self.shards.items():
-            for node in shard.validator_nodes:
-                new_shard_assignments[node.node_id] = shard_id
-
-        # 🟢 If no previous assignments exist, just store current state
-        if self.prev_shard_assignments is None:
-            self.prev_shard_assignments = new_shard_assignments.copy()
-            print("⚠ First iteration - no previous shard assignments to compare.")
-            return
-
-        plt.figure(figsize=(10, 5))
-        moved_nodes = False  # Check if any node moved
-
-        for node_id, prev_shard in self.prev_shard_assignments.items():
-            new_shard = new_shard_assignments.get(node_id, None)
-            if new_shard is not None and prev_shard != new_shard:
-                moved_nodes = True
-                plt.scatter(node_id, prev_shard, color='red', label='Previous' if node_id == 0 else "")
-                plt.scatter(node_id, new_shard, color='blue', label='New' if node_id == 0 else "")
-
-        plt.xlabel("Node ID")
-        plt.ylabel("Shard ID")
-        plt.title("Node Movements Between Shards")
-        if moved_nodes:
-            plt.legend()
-            plt.show()
-        else:
-            print("✅ No nodes moved between shards.")
-
-        self.prev_shard_assignments = new_shard_assignments.copy()  # ✅ Update history
