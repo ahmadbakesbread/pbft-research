@@ -1,6 +1,8 @@
+import numpy as np
+
 class Shard:
     def __init__(self, shard_id, network):
-        self.client_nodes = []
+        self.client_nodes = {}
         self.validator_nodes = []
         self.global_message_log = []
         self.shard_requests = []
@@ -10,6 +12,7 @@ class Shard:
         self.completed_requests = set()
         self.shard_id = shard_id
         self.global_requests = []
+        self.centroid = self.compute_centroid()
 
 
     def get_shard_id(self):
@@ -19,7 +22,10 @@ class Shard:
         """
         Add a node to the network.
         """
-        self.client_nodes.append(client_node)
+
+        self.client_nodes[client_node.node_id] = client_node  # Store by node_id as the key
+        client_node.shard = self  # Assign shard to the client
+
     
     def add_validator_node(self, validator_node):
         self.validator_nodes.append(validator_node)
@@ -28,6 +34,8 @@ class Shard:
         if not self.current_primary_node:
             self.current_primary_node = validator_node
             validator_node.isPrimary = True
+
+        validator_node.shard = self
         
     def add_log_request(self, log_entry):
         self.global_requests.append(log_entry)
@@ -67,12 +75,7 @@ class Shard:
             print(" Sender and Receiver Client Nodes are not in the same shard, sending request over to receiver shard.")
             receiver_shard.add_log_request(log_entry)
         else:
-            print("Either sender or receiver Client Nodes are invalid.")
-
-
-
-        
-        
+            print("Either sender or receiver Client Nodes are invalid.")        
 
         
 
@@ -118,6 +121,14 @@ class Shard:
                 replicas.append(node)
         
         return replicas
+    
+    def compute_centroid(self):
+        """Compute the centroid based on node features."""
+        if not self.validator_nodes:
+            return None
+        features = np.array([[node.cpu_rating, node.ram_usage] for node in self.validator_nodes])
+        return features.mean(axis=0)
+
     
     def get_requests(self):
         return self.global_requests

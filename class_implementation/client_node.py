@@ -50,6 +50,7 @@ class ClientNode(Node):
             print(f"Client Node {self.node_id} does not decide its shard.")
             return self.shard_id
 
+
 def main():
     network_obj = Network()
     shard = Shard()

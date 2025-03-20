@@ -114,6 +114,10 @@ class ValidatorNode(Node):
         """ Process incoming COMMIT messages and notify the shard when consensus is reached. """
         digest = commit_msg["digest"]
 
+        # ✅ Stop processing if already finalized
+        if digest in self.shard.completed_requests:
+            return  
+
         # 1️⃣ Track received COMMIT messages
         if digest not in self.commit_votes:
             self.commit_votes[digest] = set()

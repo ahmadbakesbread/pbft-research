@@ -145,11 +145,12 @@ class Network:
         self.shards.append(shard)
     
     
-    def find_shard_of_node(self, node_id): # Current lookup time, O(n^2), edit code later to ensure that lookup time is O(1) by adding nodes and shard to hashmap
-        for shard in self.shards:
-            for node in shard.validator_nodes + shard.client_nodes:
-                if node.get_node_id() == node_id: # Check if the current node we find searching through the shards is equal to the node_id we are trying to find
+    def find_shard_of_node(self, node_id):
+        for shard in self.shards.values():  # ✅ Iterate over the actual Shard objects
+            for node in shard.validator_nodes + list(shard.client_nodes.values()):  # Ensure it's a list
+                if node.get_node_id() == node_id:
                     return shard
+        return None  # Return None if the node is not found
     
     def recompute_shards(self):
         """ Recalculate shard assignments dynamically. """
@@ -199,23 +200,18 @@ class Network:
         opt_s = s_values[np.argmin(penalized_scores)]
         print(f"Optimal number of shards (with penalty): {opt_s}")
 
-        # Now assign nodes to shards using the best clustering solution
-        new_shards = {}  # shard_id -> list of nodes
-        for i, node in enumerate(self.validator_nodes):
-            label = best_labels[i]
-            if label not in new_shards:
-                new_shards[label] = []
-            new_shards[label].append(node)
+        # Assign nodes to `Shard` objects instead of just a dictionary
+        self.shards = {}  # Reset shard storage
+        for shard_id in range(opt_s):
+            self.shards[shard_id] = Shard(shard_id, self)
 
-        # Update network's shard assignments and compute centroids
-        self.shards = new_shards
-        self.shard_centroids = {}
-        for label, nodes in self.shards.items():
-            features = np.array([[node.cpu_rating, node.ram_usage] for node in nodes])
-            self.shard_centroids[label] = features.mean(axis=0)
-            # Optionally, you can update a node's shard attribute if defined:
-            for node in nodes:
-                node.shard = label
+        for i, node in enumerate(self.validator_nodes):
+            shard_id = best_labels[i]
+            self.shards[shard_id].add_validator_node(node)
+
+        # Update centroids after all nodes are assigned
+        for shard in self.shards.values():
+            shard.centroid = shard.compute_centroid()
 
         print(f"Shards recomputed dynamically. Total shards: {len(self.shards)}")
 
@@ -226,5 +222,30 @@ class Network:
         self.recompute_shards()
         self.N = len(self.validator_nodes)
         self.K_malicious = int(self.N * 0.2)
-        self.recompute_shards()
+    
+        # Find the closest shard based on the centroid
+        if self.shard_centroids:
+            node_features = np.array([validator_node.cpu_rating, validator_node.ram_usage])
+            closest_shard_id = min(self.shard_centroids, key=lambda s: np.linalg.norm(self.shard_centroids[s] - node_features))
+            self.shards[closest_shard_id].add_node(validator_node)
+            print(f"Added node {validator_node.node_id} to shard {closest_shard_id}")
+        else:
+            print("No shards exist yet. Recomputing shards.")
+            self.recompute_shards()
 
+
+    def add_client_node(self, client_node):
+        """Add a client node to the network and assign it to the least populated shard to balance network traffic."""
+        self.client_nodes[client_node.node_id] = client_node
+
+        if not self.shards:
+            print("No shards exist yet. Cannot assign client node.")
+            return
+
+        # Find the shard with the least number of client nodes
+        least_populated_shard = min(self.shards.values(), key=lambda shard: len(shard.client_nodes))
+        
+        # Assign the client node to this shard
+        least_populated_shard.add_client_node(client_node)
+
+        print(f"Client {client_node.node_id} assigned to shard {least_populated_shard.shard_id} (Least populated).")

@@ -6,7 +6,7 @@ from dummy_network import DummyNetwork, DummyNode
 
 
 def find_optimal_eps(X, min_pts):
-
+    '''function finds the optimal maximum distance between two data points that are considered to be neighbors'''
     neigh = NearestNeighbors(n_neighbors=min_pts)
     neigh.fit(X)
     distances, _ = neigh.kneighbors(X)

@@ -68,7 +68,7 @@ class Node(ABC):
         """
         String representation of the node.
         """
-        return (f"Node(ID={self.node_id}, Role={self.role}, Shard={self.shard_id}")
+        return (f"Node(ID={self.node_id}, Role={self.role})")
     
     def __repr__(self):
-        return f"ValidatorNode(id={self.node_id}, name={self.name})"
+        return f"Node(id={self.node_id}, name={self.name})"

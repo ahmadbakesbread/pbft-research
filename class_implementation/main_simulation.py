@@ -55,6 +55,46 @@ def main():
 
     print(net.shards)
 
+    shard_0 = net.shards.get(0)
+    shard_1 = net.shards.get(1)
+
+
+    print(f"Shard 0: {shard_0}")
+    print(f"Shard 1: {shard_1}")
+
+    print(f"Shard 0 Primary Node: {shard_0.get_primary_node()}") 
+
+    print(f"Shard 1 Primary Node: {shard_1.get_primary_node()}") 
+
+    client_0 = random.choice(list(shard_0.client_nodes.values()))
+    client_1 = random.choice(list(shard_1.client_nodes.values()))
+    primary_1 = shard_1.get_primary_node()
+
+    client_0.create_request("Ahmad has sent 5 supercoins to Naseem.", client_1.get_node_id())
+
+    print(f"All logged requests from Shard 1's perspective: {shard_0.get_requests()}") # Should be empty
+    
+    print(f"All logged requests from Shard 2's perspective: {shard_1.get_requests()}") # Shard object will now have the request logged.
+
+    print(f"All logged requests from Validator Node 5's perspective: {primary_1.check_requests()}") # Primary validator node will be authorized to check requests.
+
+    client_requests = primary_1.check_requests()
+
+    primary_1.handle_request(client_requests[0])
+
+    for val_node in shard_1.get_replicas():
+        val_node.process_prepare() # Process Prepare is both responsible for the process method and commit method, if you check the process prepare method it then jumps to commit method, almost happening as if it were 2 stages.
+
+    print(shard_1.get_completed_requests()) # Will show that network has completed the request
+
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     main()
